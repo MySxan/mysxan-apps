@@ -33,13 +33,22 @@ jobs:
         run: npm run build
 
       - name: Install gh
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Ensure token for cross-repo artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "GH_PAGES_TOKEN is required to access artifacts in other repos."
+            exit 1
+          fi
 
       - name: Download course-scheduler artifact
         env:
-          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN }}
         run: |
           set -euo pipefail
           OWNER=MySxan
@@ -59,7 +68,7 @@ jobs:
 
       - name: Download wordle-helper artifact
         env:
-          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN }}
         run: |
           set -euo pipefail
           OWNER=MySxan
