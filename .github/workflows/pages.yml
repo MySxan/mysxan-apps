@@ -46,45 +46,49 @@ jobs:
             exit 1
           fi
 
-      - name: Download course-scheduler artifact
+      - name: Download tool artifacts
         env:
           GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN }}
         run: |
           set -euo pipefail
-          OWNER=MySxan
-          REPO=course-scheduler
-          ARTIFACT=dist
-          RUN_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs?branch=main&status=success&per_page=1" --jq ".workflow_runs[0].id")
-          ART_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs/${RUN_ID}/artifacts" --jq ".artifacts[] | select(.name==\"${ARTIFACT}\") | .id")
-          gh api "/repos/${OWNER}/${REPO}/actions/artifacts/${ART_ID}/zip" > /tmp/${REPO}.zip
-          mkdir -p /tmp/${REPO}
-          unzip -q /tmp/${REPO}.zip -d /tmp/${REPO}
-          mkdir -p dist/course-scheduler
-          if [ -d "/tmp/${REPO}/dist" ]; then
-            cp -a /tmp/${REPO}/dist/. dist/course-scheduler/
-          else
-            cp -a /tmp/${REPO}/. dist/course-scheduler/
-          fi
 
-      - name: Download wordle-helper artifact
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN }}
-        run: |
-          set -euo pipefail
-          OWNER=MySxan
-          REPO=wordle-helper
-          ARTIFACT=dist
-          RUN_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs?branch=main&status=success&per_page=1" --jq ".workflow_runs[0].id")
-          ART_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs/${RUN_ID}/artifacts" --jq ".artifacts[] | select(.name==\"${ARTIFACT}\") | .id")
-          gh api "/repos/${OWNER}/${REPO}/actions/artifacts/${ART_ID}/zip" > /tmp/${REPO}.zip
-          mkdir -p /tmp/${REPO}
-          unzip -q /tmp/${REPO}.zip -d /tmp/${REPO}
-          mkdir -p dist/wordle-helper
-          if [ -d "/tmp/${REPO}/dist" ]; then
-            cp -a /tmp/${REPO}/dist/. dist/wordle-helper/
-          else
-            cp -a /tmp/${REPO}/. dist/wordle-helper/
-          fi
+          download_artifact() {
+            local owner="$1"
+            local repo="$2"
+            local artifact="$3"
+            local target="$4"
+            local branch="${5:-main}"
+
+            echo "Checking access to ${owner}/${repo}..."
+            gh api "/repos/${owner}/${repo}" >/dev/null
+
+            local run_id
+            run_id=$(gh api "/repos/${owner}/${repo}/actions/runs?branch=${branch}&status=success&per_page=1" --jq ".workflow_runs[0].id")
+            if [ -z "${run_id}" ] || [ "${run_id}" = "null" ]; then
+              echo "No successful workflow runs found for ${owner}/${repo} on branch ${branch}."
+              exit 1
+            fi
+
+            local art_id
+            art_id=$(gh api "/repos/${owner}/${repo}/actions/runs/${run_id}/artifacts" --jq ".artifacts[] | select(.name==\"${artifact}\") | .id")
+            if [ -z "${art_id}" ] || [ "${art_id}" = "null" ]; then
+              echo "Artifact '${artifact}' not found for run ${run_id} in ${owner}/${repo}."
+              exit 1
+            fi
+
+            gh api "/repos/${owner}/${repo}/actions/artifacts/${art_id}/zip" > "/tmp/${repo}.zip"
+            mkdir -p "/tmp/${repo}"
+            unzip -q "/tmp/${repo}.zip" -d "/tmp/${repo}"
+            mkdir -p "dist/${target}"
+            if [ -d "/tmp/${repo}/dist" ]; then
+              cp -a "/tmp/${repo}/dist/." "dist/${target}/"
+            else
+              cp -a "/tmp/${repo}/." "dist/${target}/"
+            fi
+          }
+
+          download_artifact "MySxan" "course-scheduler" "dist" "course-scheduler" "main"
+          download_artifact "MySxan" "wordle-helper" "dist" "wordle-helper" "main"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
