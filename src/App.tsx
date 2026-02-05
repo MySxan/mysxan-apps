@@ -296,7 +296,7 @@ export default function App() {
                   className="mx-glass p-6 flex flex-col gap-5"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="h-[84px] w-[84px] overflow-hidden rounded-2xl border border-slate-300/60 bg-white/70">
+                    <div className="h-21 w-21 overflow-hidden rounded-2xl border border-slate-300/60 bg-white/70">
                       {app.iconUrl && (
                         <img
                           src={app.iconUrl}
