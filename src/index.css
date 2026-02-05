@@ -134,6 +134,11 @@ a:hover {
     transform 180ms ease;
 }
 
+.mx-tilt > * {
+  position: relative;
+  z-index: 1;
+}
+
 .mx-glass::before {
   content: "";
   position: absolute;
@@ -161,6 +166,39 @@ a:hover {
     inset 0 -1px 0 rgba(15, 23, 42, 0.05);
 }
 
+.mx-tilt {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.mx-tilt::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px 220px at var(--mx-card-x, 50%) var(--mx-card-y, 20%),
+    rgba(255, 255, 255, 0.75),
+    rgba(255, 255, 255, 0.16) 45%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mx-tilt:hover::before {
+  opacity: 0.45;
+}
+
+.mx-tilt.is-hover::before {
+  opacity: 0.45;
+}
+
 .mx-glass-flat {
   position: relative;
   border-radius: 20px;
@@ -185,4 +223,9 @@ a:hover {
 .group:hover .mx-icon,
 .group:focus-within .mx-icon {
   color: rgb(113 113 122);
+}
+
+.mx-btn-glow:hover {
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.12);
 }

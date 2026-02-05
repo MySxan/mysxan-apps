@@ -136,13 +136,15 @@ export default function App() {
     });
   }, [searchTerm, selectedCategory]);
 
+  useTiltCards(filteredApps.length);
+
   return (
     <div className="mx-bg relative text-zinc-900">
       <header className="fixed left-0 right-0 top-0 z-40 bg-white/70 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-8">
             <a
-              href="https://mysxan.com/"
+              href="https://apps.mysxan.com/"
               className="font-semibold tracking-tight"
             >
               Apps / MySxan
@@ -172,12 +174,6 @@ export default function App() {
                 href="https://works.mysxan.com/"
               >
                 Portfolio
-              </a>
-              <a
-                className="transition hover:text-zinc-900"
-                href="https://mysxan.com/#links"
-              >
-                Links
               </a>
             </nav>
           </div>
@@ -293,7 +289,7 @@ export default function App() {
               {filteredApps.map((app) => (
                 <div
                   key={app.slug}
-                  className="mx-glass p-6 flex flex-col gap-5"
+                  className="mx-glass mx-tilt p-6 flex flex-col gap-5"
                 >
                   <div className="flex items-start gap-4">
                     <div className="h-21 w-21 overflow-hidden rounded-2xl border border-slate-300/60 bg-white/70">
@@ -346,14 +342,14 @@ export default function App() {
                   <div className="flex items-center gap-4">
                     <a
                       href={app.path}
-                      className="flex-1 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition duration-150 hover:opacity-95 text-center"
+                      className="mx-btn-glow flex-1 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition duration-150 hover:opacity-95 text-center"
                     >
                       Open
                     </a>
                     {app.links?.repository && (
                       <a
                         href={app.links.repository}
-                        className="rounded-full border border-zinc-200 bg-white/70 px-4 py-2.5 text-sm font-medium backdrop-blur transition duration-150 hover:bg-white"
+                        className="mx-btn-glow rounded-full border border-zinc-200 bg-white/70 px-4 py-2.5 text-sm font-medium backdrop-blur transition duration-150 hover:bg-white"
                       >
                         Repository
                       </a>
@@ -436,4 +432,103 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+function useTiltCards(itemCount: number) {
+  useEffect(() => {
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>(".mx-tilt")
+    );
+    if (!cards.length) return;
+
+    const state = new Map<
+      HTMLElement,
+      {
+        rect: DOMRect | null;
+        raf: number | null;
+        x: number;
+        y: number;
+      }
+    >();
+
+    const schedule = (el: HTMLElement) => {
+      const entry = state.get(el);
+      if (!entry || entry.raf !== null || !entry.rect) return;
+      entry.raf = window.requestAnimationFrame(() => {
+        entry.raf = null;
+        const rect = entry.rect;
+        if (!rect) return;
+        const px = (entry.x - rect.left) / rect.width;
+        const py = (entry.y - rect.top) / rect.height;
+        const rotY = (px - 0.5) * 14;
+        const rotX = -(py - 0.5) * 14;
+        const scale = 1.01;
+
+        el.classList.add("is-hover");
+        el.style.transform = `perspective(1000px) rotateX(${rotX.toFixed(
+          2
+        )}deg) rotateY(${rotY.toFixed(2)}deg) scale(${scale})`;
+        el.style.setProperty("--mx-card-x", `${(px * 100).toFixed(1)}%`);
+        el.style.setProperty("--mx-card-y", `${(py * 100).toFixed(1)}%`);
+      });
+    };
+
+    const onEnter = (el: HTMLElement) => {
+      const entry = state.get(el);
+      if (entry) {
+        entry.rect = el.getBoundingClientRect();
+      }
+      el.classList.add("is-hover");
+    };
+
+    const onLeave = (el: HTMLElement) => {
+      const entry = state.get(el);
+      if (entry?.raf) {
+        window.cancelAnimationFrame(entry.raf);
+        entry.raf = null;
+      }
+      el.classList.remove("is-hover");
+      el.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)";
+      el.style.transform =
+        "perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)";
+      window.setTimeout(() => {
+        el.style.transition = "";
+      }, 240);
+    };
+
+    const handlers = cards.map((el) => {
+      state.set(el, { rect: null, raf: null, x: 0, y: 0 });
+      const handleMove = (e: PointerEvent) => {
+        const entry = state.get(el);
+        if (!entry) return;
+        entry.x = e.clientX;
+        entry.y = e.clientY;
+        if (!entry.rect) {
+          entry.rect = el.getBoundingClientRect();
+        }
+        schedule(el);
+      };
+      const handleEnter = () => onEnter(el);
+      const handleLeave = () => onLeave(el);
+      el.addEventListener("pointermove", handleMove, {
+        passive: true,
+        capture: true,
+      });
+      el.addEventListener("pointerenter", handleEnter);
+      el.addEventListener("pointerleave", handleLeave);
+      return { el, handleMove, handleEnter, handleLeave };
+    });
+
+    return () => {
+      for (const { el, handleMove, handleEnter, handleLeave } of handlers) {
+        el.removeEventListener("pointermove", handleMove, { capture: true });
+        el.removeEventListener("pointerenter", handleEnter);
+        el.removeEventListener("pointerleave", handleLeave);
+        const entry = state.get(el);
+        if (entry?.raf) {
+          window.cancelAnimationFrame(entry.raf);
+        }
+      }
+    };
+  }, [itemCount]);
 }
