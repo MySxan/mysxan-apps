@@ -1,0 +1,97 @@
+name: Build and Deploy Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build main app
+        run: npm run build
+
+      - name: Install gh
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Download course-scheduler artifact
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          OWNER=MySxan
+          REPO=course-scheduler
+          ARTIFACT=dist
+          RUN_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs?branch=main&status=success&per_page=1" --jq ".workflow_runs[0].id")
+          ART_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs/${RUN_ID}/artifacts" --jq ".artifacts[] | select(.name==\"${ARTIFACT}\") | .id")
+          gh api "/repos/${OWNER}/${REPO}/actions/artifacts/${ART_ID}/zip" > /tmp/${REPO}.zip
+          mkdir -p /tmp/${REPO}
+          unzip -q /tmp/${REPO}.zip -d /tmp/${REPO}
+          mkdir -p dist/course-scheduler
+          if [ -d "/tmp/${REPO}/dist" ]; then
+            cp -a /tmp/${REPO}/dist/. dist/course-scheduler/
+          else
+            cp -a /tmp/${REPO}/. dist/course-scheduler/
+          fi
+
+      - name: Download wordle-helper artifact
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAGES_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          OWNER=MySxan
+          REPO=wordle-helper
+          ARTIFACT=dist
+          RUN_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs?branch=main&status=success&per_page=1" --jq ".workflow_runs[0].id")
+          ART_ID=$(gh api "/repos/${OWNER}/${REPO}/actions/runs/${RUN_ID}/artifacts" --jq ".artifacts[] | select(.name==\"${ARTIFACT}\") | .id")
+          gh api "/repos/${OWNER}/${REPO}/actions/artifacts/${ART_ID}/zip" > /tmp/${REPO}.zip
+          mkdir -p /tmp/${REPO}
+          unzip -q /tmp/${REPO}.zip -d /tmp/${REPO}
+          mkdir -p dist/wordle-helper
+          if [ -d "/tmp/${REPO}/dist" ]; then
+            cp -a /tmp/${REPO}/dist/. dist/wordle-helper/
+          else
+            cp -a /tmp/${REPO}/. dist/wordle-helper/
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
